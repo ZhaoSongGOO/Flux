@@ -13,6 +13,12 @@ extern char stack_bottom[], stack_top[], multiboot_data[], _start[];
 
 void kmain(void);
 
+uint32_t CR0() {
+  uint32_t cr0;
+  asm volatile("mov %%cr0, %0" : "=r"(cr0));
+  return cr0;
+}
+
 void print_char(char c) {
   if (c == '\n') {
     cursor_x = 0;
@@ -62,11 +68,56 @@ void print_memory_segment_info(const char *title, uint32_t addr) {
 }
 
 void print_memory_info() {
-  print_memory_segment_info("[*]multiboot_data :0x", (uint32_t)multiboot_data);
-  print_memory_segment_info("[*]_start_data    :0x", (uint32_t)_start);
-  print_memory_segment_info("[*]kmain_data     :0x", (uint32_t)kmain);
+  print_memory_segment_info("[*]multiboot      :0x", (uint32_t)multiboot_data);
+  print_memory_segment_info("[*]_start         :0x", (uint32_t)_start);
+  print_memory_segment_info("[*]kmain          :0x", (uint32_t)kmain);
   print_memory_segment_info("[*]stack_bottom   :0x", (uint32_t)stack_bottom);
   print_memory_segment_info("[*]stack_top      :0x", (uint32_t)stack_top);
+}
+
+void print_message(const char *msg) {
+  print_char('\n');
+  for (int i = 0; msg[i] != '\0'; i++) {
+    print_char(msg[i]);
+  }
+}
+
+void print_cr0() {
+  uint16_t cr0 = CR0();
+  print_message("[*]CR0: ");
+  print_addr(cr0);
+  if (cr0 & 0x1) {
+    print_message("[*]Protected Mode");
+  } else {
+    print_message("[*]Real Mode");
+  }
+}
+
+// GDT: global description table
+void print_gdt() {
+  struct {
+    uint16_t limit;
+    uint32_t base;
+  } __attribute__((packed)) gdtr;
+  asm volatile("sgdt %0" : "=m"(gdtr));
+  print_message("[*]GDT.base: ");
+  print_addr(gdtr.base);
+  print_message("[*]GDT.limit: ");
+  print_addr(gdtr.limit);
+}
+
+void reset_gdt() {
+  uint64_t my_gdt[3];
+  my_gdt[0] = 0;                  // Null description
+  my_gdt[1] = 0x00CF9A000000FFFF; // Code: Base=0, Limit=4G, Type=Read/Exe
+  my_gdt[2] = 0x00CF92000000FFFF; // Data: Base=0, Limit=4G, Type=Read/Write
+
+  struct {
+    uint16_t limit;
+    uint32_t base;
+  } __attribute__((packed)) gdtr = {sizeof(my_gdt) - 1, (uint32_t)my_gdt};
+
+  asm volatile("lgdt %0" : : "m"(gdtr));
 }
 
 void kmain(void) {
@@ -75,5 +126,9 @@ void kmain(void) {
   for (int i = 0; message[i] != '\0'; i++) {
     print_char(message[i]);
   }
+  print_cr0();
+  print_gdt();
+  reset_gdt();
+  print_gdt();
   print_memory_info();
 }

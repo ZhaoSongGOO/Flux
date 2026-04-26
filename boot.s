@@ -12,18 +12,43 @@ align 4
     dd MB_FLAGS
     dd MB_CHECKSUM
 
+section .data
+align 4096
+boot_page_directory:
+    dd (boot_page_table1 - 0xC0000000) + 0x003
+    times 767 dd 0
+    dd (boot_page_table1 - 0xC0000000) + 0x003
+    times 255 dd 0
+
+boot_page_table1:
+    %assign i 0
+    %rep 1024
+        dd (i << 12) | 0x003
+        %assign i i+1
+    %endrep
+
 section .text
 [bits 32]               
 global _start
 extern kmain           
 
 _start:
-    mov esp, stack_top  
-    call kmain         
+    %define PHY_ADDR(v) ((v) - 0xC0000000)
+    mov eax, PHY_ADDR(boot_page_directory)
+    mov cr3, eax
 
-    cli               
+    mov eax, cr0
+    or eax, 0x80000000
+    mov cr0, eax
+
+    lea eax, [.higher_half]
+    jmp eax
+
+.higher_half:
+    mov esp, stack_top
+    call kmain
 .halt:
-    hlt              
+    hlt
     jmp .halt
 
 section .bss

@@ -1,1 +1,1 @@
-qemu-system-i386 -kernel flux.bin
+qemu-system-i386 -kernel flux.bin -d int,cpu_reset -no-reboot -D qemu.log
