@@ -15,10 +15,10 @@ align 4
 section .data
 align 4096
 boot_page_directory:
-    dd (boot_page_table1 - 0xC0000000) + 0x003
-    times 767 dd 0
-    dd (boot_page_table1 - 0xC0000000) + 0x003
-    times 255 dd 0
+    dd (boot_page_table1 - 0xC0000000) + 0x003 ; index 0 0x00000000~0x003FFFFF
+    times 767 dd 0                             ; index 1 - 767                      
+    dd (boot_page_table1 - 0xC0000000) + 0x003 ; index 768
+    times 255 dd 0                             ; index 769 - 1023
 
 boot_page_table1:
     %assign i 0

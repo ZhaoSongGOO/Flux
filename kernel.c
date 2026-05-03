@@ -9,7 +9,8 @@ int static_global_data = 0;
 int cursor_x = 0;
 int cursor_y = 0;
 
-extern char stack_bottom[], stack_top[], multiboot_data[], _start[];
+extern char stack_bottom[], stack_top[], multiboot_data[], _start[],
+    _kernel_end[], _kernel_start[];
 
 void kmain(void);
 
@@ -120,12 +121,22 @@ void reset_gdt() {
   asm volatile("lgdt %0" : : "m"(gdtr));
 }
 
+void print_kernel_info() {
+  print_memory_segment_info("[*]Kernel start addr   :0x",
+                            (uint32_t)_kernel_start);
+  print_memory_segment_info("[*]Kernel end addr     :0x",
+                            (uint32_t)_kernel_end);
+  print_memory_segment_info("[*]Kernel size(Byte)   :0x",
+                            (uint32_t)(_kernel_end - _kernel_start));
+}
+
 void kmain(void) {
   clean();
   const char *message = "[*]Hello, Flux!";
   for (int i = 0; message[i] != '\0'; i++) {
     print_char(message[i]);
   }
+  print_kernel_info();
   print_cr0();
   print_gdt();
   reset_gdt();
