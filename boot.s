@@ -13,6 +13,8 @@ align 4
     dd MB_CHECKSUM
 
 section .data
+global boot_page_directory
+global boot_page_table1
 align 4096
 boot_page_directory:
     dd (boot_page_table1 - 0xC0000000) + 0x003 ; index 0 0x00000000~0x003FFFFF

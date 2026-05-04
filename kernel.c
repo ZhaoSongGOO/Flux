@@ -1,16 +1,23 @@
 #include <stdint.h>
-#define VIDEO_MEMORY ((volatile char *)0xB8000)
+#define VIDEO_PHY_MEMORY ((volatile char *)0xB8000)
 #define SCREEN_WIDTH 80
 #define SCREEN_HEIGHT 25
+#define KB (1024)
+#define MB (KB * 1024)
 
 int global_data = 123;
 int static_global_data = 0;
+
+static char *VIDEO_MEMORY;
 
 int cursor_x = 0;
 int cursor_y = 0;
 
 extern char stack_bottom[], stack_top[], multiboot_data[], _start[],
-    _kernel_end[], _kernel_start[];
+    _kernel_end[], _kernel_start[], boot_page_table1[];
+extern uint32_t boot_page_directory[];
+
+static uint32_t _self_page_table[1024] __attribute__((aligned(4096)));
 
 void kmain(void);
 
@@ -130,7 +137,36 @@ void print_kernel_info() {
                             (uint32_t)(_kernel_end - _kernel_start));
 }
 
+void print_boot_page_directory() {
+  print_memory_segment_info("[*]boot_page_directory addr :0x",
+                            (uint32_t)boot_page_directory);
+  print_memory_segment_info("[*]boot_page_directory[0] addr :0x",
+                            (uint32_t)boot_page_directory[0]);
+  print_memory_segment_info("[*]boot_page_directory[768] addr :0x",
+                            (uint32_t)boot_page_directory[768]);
+  print_memory_segment_info("[*]boot_page_table1 addr    :0x",
+                            (uint32_t)boot_page_table1);
+  print_memory_segment_info("[*]boot_page_directory size :0x",
+                            (uint32_t)boot_page_table1 -
+                                (uint32_t)boot_page_directory);
+}
+
+void init_page_table() {
+  int last_index = ((uint32_t)_kernel_end / (4 * MB)) + 1;
+  if (last_index > 1023) {
+    return;
+  }
+  VIDEO_MEMORY = (char *)(4 * MB * last_index);
+  _self_page_table[0] = (uint32_t)VIDEO_PHY_MEMORY | 0x003;
+  boot_page_directory[0] = 0x00000000;
+  boot_page_directory[last_index] =
+      ((uint32_t)_self_page_table - 0xC0000000) + 0x003;
+
+  asm volatile("mov %%cr3, %%eax; mov %%eax, %%cr3" ::: "eax");
+}
+
 void kmain(void) {
+  init_page_table();
   clean();
   const char *message = "[*]Hello, Flux!";
   for (int i = 0; message[i] != '\0'; i++) {
@@ -141,5 +177,6 @@ void kmain(void) {
   print_gdt();
   // reset_gdt();
   // print_gdt();
+  print_boot_page_directory();
   print_memory_info();
 }
