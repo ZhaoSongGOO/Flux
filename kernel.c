@@ -139,7 +139,7 @@ void kmain(void) {
   print_kernel_info();
   print_cr0();
   print_gdt();
-  reset_gdt();
-  print_gdt();
+  // reset_gdt();
+  // print_gdt();
   print_memory_info();
 }
